@@ -39,24 +39,20 @@ try {
 
     # ========== PROCESS CSV FILE ==========
     Write-Log "Processing CSV file..."
-    $csvContent = Get-Content -Path $csvFile.FullName
-
-    if ($csvContent.Count -gt 1) {
-        # Remove first row
-        $csvContent = $csvContent | Select-Object -Skip 1
-    }
 
     # Create temporary Excel workbook for CSV data
     $csvExcelPath = Join-Path -Path $outputPath -ChildPath "export_processed.xlsx"
     $csvWorkbook = $excel.Workbooks.Add()
     $csvSheet = $csvWorkbook.Sheets.Item(1)
 
-    # Write CSV content to Excel
+    # Write CSV content to Excel using proper CSV parsing (handles commas inside fields)
+    $csvData = Import-Csv -Path $csvFile.FullName
     $row = 1
-    foreach ($line in $csvContent) {
-        $columns = $line -split ','
-        for ($col = 0; $col -lt $columns.Count; $col++) {
-            $csvSheet.Cells.Item($row, $col + 1) = $columns[$col].Trim('"')
+    foreach ($record in $csvData) {
+        $col = 1
+        foreach ($property in $record.PSObject.Properties) {
+            $csvSheet.Cells.Item($row, $col) = $property.Value
+            $col++
         }
         $row++
     }
@@ -218,16 +214,16 @@ try {
         $highlightedCount = 0
         foreach ($key in $forecastDataKeys.Keys) {
             if (-not $forecastKeys.ContainsKey($key)) {
-                # Find first empty row in forecast tab (skip rows 1-3)
+                # Find first empty row in forecast tab (skip rows 1-3), check column C since data starts there
                 $emptyRow = 4
-                while ($forecastSheet.Cells.Item($emptyRow, 1).Value2) {
+                while ($forecastSheet.Cells.Item($emptyRow, 3).Value2) {
                     $emptyRow++
                 }
 
-                # Copy entire row from forecast data to forecast
-                for ($col = 1; $col -le 26; $col++) {
+                # Copy columns A-AC (1-29) from forecast data into columns C-AE (3-31) on forecast tab
+                for ($col = 1; $col -le 29; $col++) {
                     $value = $forecastDataSheet.Cells.Item($forecastDataKeys[$key], $col).Value2
-                    $forecastSheet.Cells.Item($emptyRow, $col) = $value
+                    $forecastSheet.Cells.Item($emptyRow, $col + 2) = $value
                 }
                 $addedCount++
                 Write-Log "Added new entry to forecast tab (row $emptyRow): $key"
