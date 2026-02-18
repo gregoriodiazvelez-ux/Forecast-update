@@ -124,12 +124,14 @@ try {
         $forecastDataWS = $forecastWB.Sheets("Forecast data")
         $forecastDataWS.Cells.Clear()
 
-        if ($values -ne $null) {
+        if ($values -ne $null -and $usedRange.Rows.Count -gt 0 -and $usedRange.Columns.Count -gt 0) {
             Write-Log "Pasting data ($($usedRange.Rows.Count) rows, $($usedRange.Columns.Count) columns)"
             $forecastDataWS.Range("A1").Resize(
                 $usedRange.Rows.Count,
                 $usedRange.Columns.Count
             ).Value2 = $values
+        } else {
+            Write-Log "WARNING: No data to paste (rows: $($usedRange.Rows.Count), columns: $($usedRange.Columns.Count))"
         }
         $forecastWB.Save()
         $forecastWB.Close()
@@ -162,12 +164,14 @@ try {
         $placementDataWS = $forecastWB.Sheets("Placement Data")
         $placementDataWS.Range("B:ZZ").Clear()
 
-        if ($values -ne $null) {
+        if ($values -ne $null -and $usedRange.Rows.Count -gt 0 -and $usedRange.Columns.Count -gt 0) {
             Write-Log "Pasting data ($($usedRange.Rows.Count) rows, $($usedRange.Columns.Count) columns)"
             $placementDataWS.Range("B1").Resize(
                 $usedRange.Rows.Count,
                 $usedRange.Columns.Count
             ).Value2 = $values
+        } else {
+            Write-Log "WARNING: No data to paste (rows: $($usedRange.Rows.Count), columns: $($usedRange.Columns.Count))"
         }
         $forecastWB.Save()
         $forecastWB.Close()
