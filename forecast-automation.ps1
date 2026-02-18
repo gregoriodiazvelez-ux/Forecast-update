@@ -172,16 +172,16 @@ try {
         $newCount = 0
         foreach ($key in $placementKeys.Keys) {
             if (-not $placedKeys.ContainsKey($key)) {
-                # Find first empty row in placed tab (skip rows 1-2)
+                # Find first empty row in placed tab (skip rows 1-2), check column B since data starts there
                 $emptyRow = 3
-                while ($placedSheet.Cells.Item($emptyRow, 1).Value2) {
+                while ($placedSheet.Cells.Item($emptyRow, 2).Value2) {
                     $emptyRow++
                 }
 
-                # Copy entire row from placement data to placed
-                for ($col = 1; $col -le 26; $col++) { # A-Z columns
+                # Copy columns A-AI (1-35) from placement data into columns B-AJ (2-36) on placed tab
+                for ($col = 1; $col -le 35; $col++) {
                     $value = $placementDataSheet.Cells.Item($placementKeys[$key], $col).Value2
-                    $placedSheet.Cells.Item($emptyRow, $col) = $value
+                    $placedSheet.Cells.Item($emptyRow, $col + 1) = $value
                 }
                 $newCount++
                 Write-Log "Added new entry to placed tab (row $emptyRow): $key"
