@@ -286,16 +286,6 @@ try {
     }
     Write-Log "Added $placedRecordsAdded new records to Placed"
 
-    $placedRowsHighlighted = 0
-    for ($i = 4; $i -le $placedLastRow; $i++) {
-        $value = $placedWS.Cells($i, 3).Value2
-        if ($value -and -not $placementValues.ContainsKey(([string]$value).Trim())) {
-            $placedWS.Rows($i).Interior.Color = 65535  # Yellow
-            $placedRowsHighlighted++
-        }
-    }
-    Write-Log "Highlighted $placedRowsHighlighted inactive records in Placed (yellow)"
-
     $forecastWB.Save()
     $forecastWB.Close()
     Write-Log "Forecast Tool saved and closed"
