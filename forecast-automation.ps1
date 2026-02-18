@@ -183,6 +183,22 @@ try {
                     $value = $placementDataSheet.Cells.Item($placementKeys[$key], $col).Value2
                     $placedSheet.Cells.Item($emptyRow, $col + 1) = $value
                 }
+
+                # Copy formulas from columns AK:CO (37-93) from the last populated row above
+                $formulaSourceRow = $emptyRow - 1
+                if ($formulaSourceRow -ge 3) {
+                    $sourceRange = $placedSheet.Range(
+                        $placedSheet.Cells.Item($formulaSourceRow, 37),
+                        $placedSheet.Cells.Item($formulaSourceRow, 93)
+                    )
+                    $destRange = $placedSheet.Range(
+                        $placedSheet.Cells.Item($emptyRow, 37),
+                        $placedSheet.Cells.Item($emptyRow, 93)
+                    )
+                    $sourceRange.Copy($destRange)
+                    Write-Log "Copied formulas (AK:CO) from row $formulaSourceRow to row $emptyRow"
+                }
+
                 $newCount++
                 Write-Log "Added new entry to placed tab (row $emptyRow): $key"
             }
