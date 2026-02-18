@@ -110,12 +110,15 @@ try {
 
     # Paste CSV data to "forecast data" tab
     if ($sheetNames -contains "forecast data") {
+        $forecastDataSheet = $forecastWorkbook.Sheets.Item("forecast data")
+        Write-Log "Clearing existing data from 'forecast data' tab..."
+        $forecastDataSheet.Cells.Clear()
+
         Write-Log "Pasting CSV data to 'forecast data' tab..."
         $csvWorkbook = $excel.Workbooks.Open($csvExcelPath)
         $csvSheet = $csvWorkbook.Sheets.Item(1)
         $csvSheet.UsedRange.Copy()
 
-        $forecastDataSheet = $forecastWorkbook.Sheets.Item("forecast data")
         $forecastDataSheet.Cells.Item(1, 1).PasteSpecial([Microsoft.Office.Interop.Excel.XlPasteType]::xlPasteAll)
 
         $csvWorkbook.Close($false)
@@ -124,12 +127,15 @@ try {
 
     # Paste Excel data to "placement data" tab
     if ($sheetNames -contains "placement data") {
+        $placementDataSheet = $forecastWorkbook.Sheets.Item("placement data")
+        Write-Log "Clearing existing data from 'placement data' tab..."
+        $placementDataSheet.Cells.Clear()
+
         Write-Log "Pasting Excel data to 'placement data' tab..."
         $excelWorkbook = $excel.Workbooks.Open($excelProcessedPath)
         $excelSheet = $excelWorkbook.Sheets.Item(1)
         $excelSheet.UsedRange.Copy()
 
-        $placementDataSheet = $forecastWorkbook.Sheets.Item("placement data")
         $placementDataSheet.Cells.Item(1, 1).PasteSpecial([Microsoft.Office.Interop.Excel.XlPasteType]::xlPasteAll)
 
         $excelWorkbook.Close($false)
