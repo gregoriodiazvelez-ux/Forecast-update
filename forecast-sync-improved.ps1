@@ -47,7 +47,7 @@ function Find-FileWithDebug {
     } else {
         Write-Log "WARNING: No files found matching '$filter'" -Error
         if ($Debug) {
-            Write-Log "Files in $path:"
+            Write-Log "Files in ${path}:"
             Get-ChildItem $path 2>$null | Select-Object -First 10 | ForEach-Object {
                 Write-Log "  - $($_.Name)"
             }
