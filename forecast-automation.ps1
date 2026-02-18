@@ -73,11 +73,11 @@ try {
     # Delete column B
     $excelSheet.Columns.Item(2).Delete()
 
-    # Delete rows where column A starts with "Total", "Totals", or "Department" (case-insensitive, except header)
+    # Delete rows where column A starts with "Total", "Totals", "Department", or "Grand Total" (case-insensitive, except header)
     $lastRow = $excelSheet.UsedRange.Rows.Count
     for ($i = $lastRow; $i -ge 2; $i--) {
         $cellValue = [string]$excelSheet.Cells.Item($i, 1).Value2
-        if ($cellValue -imatch "^(totals?|department)\b") {
+        if ($cellValue -imatch "^(totals?|department|grand total)\b") {
             $excelSheet.Rows.Item($i).Delete()
         }
     }
