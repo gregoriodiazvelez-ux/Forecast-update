@@ -238,8 +238,7 @@ try {
                         $forecastSheet.Cells.Item($emptyRow, 35),
                         $forecastSheet.Cells.Item($emptyRow, 79)
                     )
-                    $sourceRange.Copy()
-                    $destRange.PasteSpecial(-4123) # -4123 = xlPasteFormulas
+                    $sourceRange.Copy($destRange)
                     Write-Log "Copied formulas (AI:CA) from row $formulaSourceRow to row $emptyRow"
                 }
 
