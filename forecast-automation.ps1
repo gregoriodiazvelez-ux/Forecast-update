@@ -19,8 +19,19 @@ try {
 
     # Find source files
     Write-Log "Looking for source files in $downloadsPath"
-    $csvFile = Get-ChildItem -Path $downloadsPath -Filter "export*" -File | Where-Object { $_.Extension -eq ".csv" } | Select-Object -First 1
-    $excelFile = Get-ChildItem -Path $downloadsPath -Filter "placement activity*" -File | Where-Object { $_.Extension -eq ".xlsx" -or $_.Extension -eq ".xls" } | Select-Object -First 1
+    $csvMatches = Get-ChildItem -Path $downloadsPath -Filter "export*" -File | Where-Object { $_.Extension -eq ".csv" } | Sort-Object LastWriteTime -Descending
+    if ($csvMatches.Count -gt 1) {
+        Write-Log "WARNING: Multiple CSV files found matching 'export*' - using most recent: $($csvMatches[0].Name)"
+        foreach ($f in $csvMatches) { Write-Log "  Found: $($f.Name) (modified $($f.LastWriteTime))" }
+    }
+    $csvFile = $csvMatches | Select-Object -First 1
+
+    $excelMatches = Get-ChildItem -Path $downloadsPath -Filter "placement activity*" -File | Where-Object { $_.Extension -eq ".xlsx" -or $_.Extension -eq ".xls" } | Sort-Object LastWriteTime -Descending
+    if ($excelMatches.Count -gt 1) {
+        Write-Log "WARNING: Multiple Excel files found matching 'placement activity*' - using most recent: $($excelMatches[0].Name)"
+        foreach ($f in $excelMatches) { Write-Log "  Found: $($f.Name) (modified $($f.LastWriteTime))" }
+    }
+    $excelFile = $excelMatches | Select-Object -First 1
 
     if (-not $csvFile) {
         throw "CSV file (export*) not found in Downloads"
