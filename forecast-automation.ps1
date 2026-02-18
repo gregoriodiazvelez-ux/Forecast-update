@@ -41,7 +41,8 @@ try {
     Write-Log "Processing CSV file..."
 
     # Create temporary Excel workbook for CSV data
-    $csvExcelPath = Join-Path -Path $outputPath -ChildPath "export_processed.xlsx"
+    $dateStamp = Get-Date -Format "yyyy-MM-dd"
+    $csvExcelPath = Join-Path -Path $outputPath -ChildPath "export_processed_$dateStamp.xlsx"
     $csvWorkbook = $excel.Workbooks.Add()
     $csvSheet = $csvWorkbook.Sheets.Item(1)
 
@@ -81,7 +82,7 @@ try {
         }
     }
 
-    $excelProcessedPath = Join-Path -Path $outputPath -ChildPath "placement_activity_processed.xlsx"
+    $excelProcessedPath = Join-Path -Path $outputPath -ChildPath "placement_activity_processed_$dateStamp.xlsx"
     $excelWorkbook.SaveAs($excelProcessedPath, 51)
     $excelWorkbook.Close($false)
     Write-Log "Excel processed and saved to $excelProcessedPath"
