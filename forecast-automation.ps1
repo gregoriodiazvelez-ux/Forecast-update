@@ -226,6 +226,23 @@ try {
                     $value = $forecastDataSheet.Cells.Item($forecastDataKeys[$key], $col).Value2
                     $forecastSheet.Cells.Item($emptyRow, $col + 2) = $value
                 }
+
+                # Copy formulas from columns AI:CA (35-79) from the last populated row above
+                $formulaSourceRow = $emptyRow - 1
+                if ($formulaSourceRow -ge 4) {
+                    $sourceRange = $forecastSheet.Range(
+                        $forecastSheet.Cells.Item($formulaSourceRow, 35),
+                        $forecastSheet.Cells.Item($formulaSourceRow, 79)
+                    )
+                    $destRange = $forecastSheet.Range(
+                        $forecastSheet.Cells.Item($emptyRow, 35),
+                        $forecastSheet.Cells.Item($emptyRow, 79)
+                    )
+                    $sourceRange.Copy()
+                    $destRange.PasteSpecial(-4123) # -4123 = xlPasteFormulas
+                    Write-Log "Copied formulas (AI:CA) from row $formulaSourceRow to row $emptyRow"
+                }
+
                 $addedCount++
                 Write-Log "Added new entry to forecast tab (row $emptyRow): $key"
             }
