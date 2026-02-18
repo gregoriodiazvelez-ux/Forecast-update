@@ -45,7 +45,7 @@ try {
     $excel.AskToUpdateLinks = $false
     # ================= STEP 1 =================
     Write-Log "STEP 1 - Processing Export file..."
-    $exportFile = Get-ChildItem $downloadsPath -Filter "export - *.csv" |
+    $exportFile = Get-ChildItem $downloadsPath -Filter "export*.csv" |
         Sort-Object LastWriteTime -Descending | Select-Object -First 1
     if ($exportFile) {
         $exportWB = $excel.Workbooks.Open($exportFile.FullName, 0)

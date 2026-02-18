@@ -103,7 +103,7 @@ try {
 
     # ================= STEP 1 =================
     Write-Log "STEP 1 - Processing Export file..."
-    $exportFile = Find-FileWithDebug $downloadsPath "export - *.csv" "Export file"
+    $exportFile = Find-FileWithDebug $downloadsPath "export*.csv" "Export file"
 
     if ($exportFile) {
         Write-Log "Opening: $($exportFile.Name)"
