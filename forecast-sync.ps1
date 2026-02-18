@@ -189,6 +189,12 @@ try {
             $nextPlacedRow++
         }
     }
+    for ($i = 4; $i -le $placedLastRow; $i++) {
+        $value = $placedWS.Cells($i, 3).Value2
+        if ($value -and -not $placementValues.ContainsKey(([string]$value).Trim())) {
+            $placedWS.Rows($i).Interior.Color = 65535
+        }
+    }
     $forecastWB.Save()
     $forecastWB.Close()
     # Cleanup
