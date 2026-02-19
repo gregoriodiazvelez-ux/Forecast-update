@@ -10,11 +10,13 @@ $forecastToolPath = "C:\Users\usuario\OneDrive - talentorecruiting.com\Forecasti
 # Setup: https://portal.azure.com → Azure AD → App registrations → New registration
 #   → Certificates & secrets → New client secret
 #   → API permissions → Add → Microsoft Graph → Application → Mail.Send → Grant admin consent
-$emailFrom    = "your-email@talentorecruiting.com"   # Licensed mailbox to send from
-$emailTo      = "your-email@talentorecruiting.com"   # Recipient(s) - use @("a@x.com","b@x.com") for multiple
-$tenantId     = "your-tenant-id"                      # Azure AD → Overview → Tenant ID
-$clientId     = "your-client-id"                      # App registration → Overview → Application (client) ID
-$clientSecret = "your-client-secret"                  # App registration → Certificates & secrets
+# Load credentials from local config file (not stored in git)
+$configFile = Join-Path $PSScriptRoot "config.ps1"
+if (Test-Path $configFile) {
+    . $configFile
+} else {
+    throw "config.ps1 not found. Copy config.ps1.example to config.ps1 and fill in your values."
+}
 
 # Log function
 function Write-Log {

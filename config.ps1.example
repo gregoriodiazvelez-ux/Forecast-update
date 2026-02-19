@@ -1,0 +1,8 @@
+# Copy this file to config.ps1 and fill in your real values.
+# config.ps1 is gitignored and never committed.
+
+$emailFrom    = "you@talentorecruiting.com"   # Licensed M365 mailbox to send from
+$emailTo      = "you@talentorecruiting.com"   # Recipient — use @("a@x.com","b@x.com") for multiple
+$tenantId     = "your-tenant-id"              # Azure AD → Overview → Tenant ID
+$clientId     = "your-client-id"              # App registration → Application (client) ID
+$clientSecret = "your-client-secret"          # App registration → Certificates & secrets
