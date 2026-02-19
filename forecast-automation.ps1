@@ -326,20 +326,29 @@ try {
 
     # Find the log log sheet
     $logSheet = $null
+    $allSheetNames = @()
     foreach ($sheet in $forecastWorkbook.Sheets) {
-        if ($sheet.Name -eq "log log") {
+        $allSheetNames += "'$($sheet.Name)'"
+        if ($sheet.Name -ieq "log log") {
             $logSheet = $sheet
-            break
         }
     }
+    Write-Log "All sheets: $($allSheetNames -join ', ')"
+
     if (-not $logSheet) {
         Write-Log "WARNING: 'log log' tab not found — skipping log update"
     } else {
+        Write-Log "Found log log sheet. ListObjects count: $($logSheet.ListObjects.Count)"
+        foreach ($lo in $logSheet.ListObjects) {
+            Write-Log "  Table found: '$($lo.Name)' at col $($lo.Range.Column)"
+        }
+
         # Locate the two Excel Tables by name
         $logListObj1 = $null  # CumulativeData — accumulating log
         $logListObj2 = $null  # LastRunData    — latest run only
         try { $logListObj1 = $logSheet.ListObjects.Item("CumulativeData") } catch {}
         try { $logListObj2 = $logSheet.ListObjects.Item("LastRunData")    } catch {}
+        Write-Log "CumulativeData found: $($null -ne $logListObj1) | LastRunData found: $($null -ne $logListObj2)"
 
         # ---- Accumulating table (A-G): add row at top, renumber IDs ----
         if ($logListObj1) {
