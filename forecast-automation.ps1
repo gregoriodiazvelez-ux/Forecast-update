@@ -7,7 +7,14 @@ $outputPath = "C:\Users\usuario\OneDrive - talentorecruiting.com\Forecasting\Dat
 $forecastToolPath = "C:\Users\usuario\OneDrive - talentorecruiting.com\Forecasting"
 
 # Email Configuration
-$emailTo = "your-email@talentorecruiting.com"   # Recipient(s) - use @("a@x.com","b@x.com") for multiple
+# Setup: https://portal.azure.com → Azure AD → App registrations → New registration
+#   → Certificates & secrets → New client secret
+#   → API permissions → Add → Microsoft Graph → Application → Mail.Send → Grant admin consent
+$emailFrom    = "your-email@talentorecruiting.com"   # Licensed mailbox to send from
+$emailTo      = "your-email@talentorecruiting.com"   # Recipient(s) - use @("a@x.com","b@x.com") for multiple
+$tenantId     = "your-tenant-id"                      # Azure AD → Overview → Tenant ID
+$clientId     = "your-client-id"                      # App registration → Overview → Application (client) ID
+$clientSecret = "your-client-secret"                  # App registration → Certificates & secrets
 
 # Log function
 function Write-Log {
@@ -140,13 +147,38 @@ function Send-EmailNotification {
 "@
         }
 
-        # Use Outlook COM object — works with Office 365 even when SMTP AUTH is disabled
-        $outlook = New-Object -ComObject Outlook.Application
-        $mail = $outlook.CreateItem(0) # 0 = olMailItem
-        $mail.To = if ($emailTo -is [array]) { $emailTo -join ";" } else { $emailTo }
-        $mail.Subject = $subject
-        $mail.HTMLBody = $body
-        $mail.Send()
+        # Send via Microsoft Graph API — works in scheduled tasks, no SMTP AUTH needed
+        $tokenResponse = Invoke-RestMethod `
+            -Uri "https://login.microsoftonline.com/$tenantId/oauth2/v2.0/token" `
+            -Method Post `
+            -Body @{
+                client_id     = $clientId
+                client_secret = $clientSecret
+                scope         = "https://graph.microsoft.com/.default"
+                grant_type    = "client_credentials"
+            }
+
+        $toRecipients = if ($emailTo -is [array]) {
+            $emailTo | ForEach-Object { @{ emailAddress = @{ address = $_ } } }
+        } else {
+            @(@{ emailAddress = @{ address = $emailTo } })
+        }
+
+        $payload = @{
+            message = @{
+                subject      = $subject
+                body         = @{ contentType = "HTML"; content = $body }
+                toRecipients = $toRecipients
+            }
+        } | ConvertTo-Json -Depth 10
+
+        Invoke-RestMethod `
+            -Uri "https://graph.microsoft.com/v1.0/users/$emailFrom/sendMail" `
+            -Method Post `
+            -Headers @{ Authorization = "Bearer $($tokenResponse.access_token)" } `
+            -ContentType "application/json" `
+            -Body $payload
+
         Write-Log "Email notification sent to $emailTo"
     } catch {
         Write-Log "WARNING: Failed to send email notification: $_"
