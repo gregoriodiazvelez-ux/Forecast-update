@@ -372,9 +372,17 @@ try {
     # ========== SAVE FORECAST TOOL ==========
     Write-Log "Saving Forecast Tool file..."
     $forecastSavePath = Join-Path $forecastToolPath "Forecast Tool $dateStamp.xlsx"
-    $forecastWorkbook.SaveAs($forecastSavePath, 51)
+    $alreadyNamed = ($forecastToolFile.FullName -ieq $forecastSavePath)
+
+    if ($alreadyNamed) {
+        # File is already named with today's date — save in place
+        $forecastWorkbook.Save()
+        Write-Log "Forecast Tool saved in place (already named 'Forecast Tool $dateStamp.xlsx')"
+    } else {
+        $forecastWorkbook.SaveAs($forecastSavePath, 51)
+        Write-Log "Forecast Tool saved as 'Forecast Tool $dateStamp.xlsx'"
+    }
     $forecastWorkbook.Close($false)
-    Write-Log "Forecast Tool saved as 'Forecast Tool $dateStamp.xlsx'"
 
     # Copy dated file to Reports folder
     $reportsPath = "C:\Users\usuario\OneDrive - talentorecruiting.com\Documentos\Reports\ForecastReports"
@@ -385,15 +393,17 @@ try {
     Copy-Item -Path $forecastSavePath -Destination (Join-Path $reportsPath "Forecast Tool.xlsx") -Force
     Write-Log "Copied to Reports folder as 'Forecast Tool.xlsx'"
 
-    # Move the original file to the Old subfolder
-    $oldFolderPath = Join-Path $forecastToolPath "Old"
-    if (-not (Test-Path $oldFolderPath)) {
-        New-Item -ItemType Directory -Path $oldFolderPath | Out-Null
-        Write-Log "Created 'Old' folder at $oldFolderPath"
+    # Move the original file to the Old subfolder (only if it had a different name)
+    if (-not $alreadyNamed) {
+        $oldFolderPath = Join-Path $forecastToolPath "Old"
+        if (-not (Test-Path $oldFolderPath)) {
+            New-Item -ItemType Directory -Path $oldFolderPath | Out-Null
+            Write-Log "Created 'Old' folder at $oldFolderPath"
+        }
+        $oldDestPath = Join-Path $oldFolderPath $forecastToolFile.Name
+        Move-Item -Path $forecastToolFile.FullName -Destination $oldDestPath -Force
+        Write-Log "Moved '$($forecastToolFile.Name)' to Old folder"
     }
-    $oldDestPath = Join-Path $oldFolderPath $forecastToolFile.Name
-    Move-Item -Path $forecastToolFile.FullName -Destination $oldDestPath -Force
-    Write-Log "Moved '$($forecastToolFile.Name)' to Old folder"
 
     Write-Log "Automation completed successfully!"
 
