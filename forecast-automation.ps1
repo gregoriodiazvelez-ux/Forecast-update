@@ -19,8 +19,19 @@ try {
 
     # Find source files
     Write-Log "Looking for source files in $downloadsPath"
-    $csvFile = Get-ChildItem -Path $downloadsPath -Filter "export*" -File | Where-Object { $_.Extension -eq ".csv" } | Select-Object -First 1
-    $excelFile = Get-ChildItem -Path $downloadsPath -Filter "placement activity*" -File | Where-Object { $_.Extension -eq ".xlsx" -or $_.Extension -eq ".xls" } | Select-Object -First 1
+    $csvMatches = Get-ChildItem -Path $downloadsPath -Filter "export*" -File | Where-Object { $_.Extension -eq ".csv" } | Sort-Object LastWriteTime -Descending
+    if ($csvMatches.Count -gt 1) {
+        Write-Log "WARNING: Multiple CSV files found matching 'export*' - using most recent: $($csvMatches[0].Name)"
+        foreach ($f in $csvMatches) { Write-Log "  Found: $($f.Name) (modified $($f.LastWriteTime))" }
+    }
+    $csvFile = $csvMatches | Select-Object -First 1
+
+    $excelMatches = Get-ChildItem -Path $downloadsPath -Filter "placement activity*" -File | Where-Object { $_.Extension -eq ".xlsx" -or $_.Extension -eq ".xls" } | Sort-Object LastWriteTime -Descending
+    if ($excelMatches.Count -gt 1) {
+        Write-Log "WARNING: Multiple Excel files found matching 'placement activity*' - using most recent: $($excelMatches[0].Name)"
+        foreach ($f in $excelMatches) { Write-Log "  Found: $($f.Name) (modified $($f.LastWriteTime))" }
+    }
+    $excelFile = $excelMatches | Select-Object -First 1
 
     if (-not $csvFile) {
         throw "CSV file (export*) not found in Downloads"
@@ -73,11 +84,11 @@ try {
     # Delete column B
     $excelSheet.Columns.Item(2).Delete()
 
-    # Delete rows where column A starts with "Total", "Totals", or "Department" (case-insensitive, except header)
+    # Delete rows where column A starts with "Total", "Totals", "Department", "Grand Total", or "Grand Totals" (case-insensitive, except header)
     $lastRow = $excelSheet.UsedRange.Rows.Count
     for ($i = $lastRow; $i -ge 2; $i--) {
         $cellValue = [string]$excelSheet.Cells.Item($i, 1).Value2
-        if ($cellValue -imatch "^(totals?|department)\b") {
+        if ($cellValue -imatch "^(totals?|department|grand totals?)\b") {
             $excelSheet.Rows.Item($i).Delete()
         }
     }
@@ -110,12 +121,15 @@ try {
 
     # Paste CSV data to "forecast data" tab
     if ($sheetNames -contains "forecast data") {
+        $forecastDataSheet = $forecastWorkbook.Sheets.Item("forecast data")
+        Write-Log "Clearing existing data from 'forecast data' tab..."
+        $forecastDataSheet.Cells.Clear()
+
         Write-Log "Pasting CSV data to 'forecast data' tab..."
         $csvWorkbook = $excel.Workbooks.Open($csvExcelPath)
         $csvSheet = $csvWorkbook.Sheets.Item(1)
         $csvSheet.UsedRange.Copy()
 
-        $forecastDataSheet = $forecastWorkbook.Sheets.Item("forecast data")
         $forecastDataSheet.Cells.Item(1, 1).PasteSpecial([Microsoft.Office.Interop.Excel.XlPasteType]::xlPasteAll)
 
         $csvWorkbook.Close($false)
@@ -124,12 +138,15 @@ try {
 
     # Paste Excel data to "placement data" tab
     if ($sheetNames -contains "placement data") {
+        $placementDataSheet = $forecastWorkbook.Sheets.Item("placement data")
+        Write-Log "Clearing existing data from 'placement data' tab..."
+        $placementDataSheet.Cells.Clear()
+
         Write-Log "Pasting Excel data to 'placement data' tab..."
         $excelWorkbook = $excel.Workbooks.Open($excelProcessedPath)
         $excelSheet = $excelWorkbook.Sheets.Item(1)
         $excelSheet.UsedRange.Copy()
 
-        $placementDataSheet = $forecastWorkbook.Sheets.Item("placement data")
         $placementDataSheet.Cells.Item(1, 1).PasteSpecial([Microsoft.Office.Interop.Excel.XlPasteType]::xlPasteAll)
 
         $excelWorkbook.Close($false)
@@ -166,17 +183,33 @@ try {
         $newCount = 0
         foreach ($key in $placementKeys.Keys) {
             if (-not $placedKeys.ContainsKey($key)) {
-                # Find first empty row in placed tab (skip rows 1-2)
+                # Find first empty row in placed tab (skip rows 1-2), check column B since data starts there
                 $emptyRow = 3
-                while ($placedSheet.Cells.Item($emptyRow, 1).Value2) {
+                while ($placedSheet.Cells.Item($emptyRow, 2).Value2) {
                     $emptyRow++
                 }
 
-                # Copy entire row from placement data to placed
-                for ($col = 1; $col -le 26; $col++) { # A-Z columns
+                # Copy columns A-AI (1-35) from placement data into columns B-AJ (2-36) on placed tab
+                for ($col = 1; $col -le 35; $col++) {
                     $value = $placementDataSheet.Cells.Item($placementKeys[$key], $col).Value2
-                    $placedSheet.Cells.Item($emptyRow, $col) = $value
+                    $placedSheet.Cells.Item($emptyRow, $col + 1) = $value
                 }
+
+                # Copy formulas from columns AK:CO (37-93) from the last populated row above
+                $formulaSourceRow = $emptyRow - 1
+                if ($formulaSourceRow -ge 3) {
+                    $sourceRange = $placedSheet.Range(
+                        $placedSheet.Cells.Item($formulaSourceRow, 37),
+                        $placedSheet.Cells.Item($formulaSourceRow, 93)
+                    )
+                    $destRange = $placedSheet.Range(
+                        $placedSheet.Cells.Item($emptyRow, 37),
+                        $placedSheet.Cells.Item($emptyRow, 93)
+                    )
+                    $sourceRange.Copy($destRange)
+                    Write-Log "Copied formulas (AK:CO) from row $formulaSourceRow to row $emptyRow"
+                }
+
                 $newCount++
                 Write-Log "Added new entry to placed tab (row $emptyRow): $key"
             }
@@ -226,6 +259,22 @@ try {
                     $value = $forecastDataSheet.Cells.Item($forecastDataKeys[$key], $col).Value2
                     $forecastSheet.Cells.Item($emptyRow, $col + 2) = $value
                 }
+
+                # Copy formulas from columns AI:CA (35-79) from the last populated row above
+                $formulaSourceRow = $emptyRow - 1
+                if ($formulaSourceRow -ge 4) {
+                    $sourceRange = $forecastSheet.Range(
+                        $forecastSheet.Cells.Item($formulaSourceRow, 35),
+                        $forecastSheet.Cells.Item($formulaSourceRow, 79)
+                    )
+                    $destRange = $forecastSheet.Range(
+                        $forecastSheet.Cells.Item($emptyRow, 35),
+                        $forecastSheet.Cells.Item($emptyRow, 79)
+                    )
+                    $sourceRange.Copy($destRange)
+                    Write-Log "Copied formulas (AI:CA) from row $formulaSourceRow to row $emptyRow"
+                }
+
                 $addedCount++
                 Write-Log "Added new entry to forecast tab (row $emptyRow): $key"
             }
