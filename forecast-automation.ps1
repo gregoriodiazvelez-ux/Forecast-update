@@ -295,11 +295,76 @@ try {
         Write-Log "Total entries highlighted in yellow: $highlightedCount"
     }
 
+    # ========== UPDATE LOG LOG TAB ==========
+    Write-Log "Updating 'log log' tab..."
+
+    # Count total active jobs (non-highlighted) in forecast tab
+    $totalActiveJobs = 0
+    if ($sheetNames -contains "forecast") {
+        $fSheet = $forecastWorkbook.Sheets.Item("forecast")
+        $fLastRow = $fSheet.UsedRange.Rows.Count
+        for ($i = 4; $i -le $fLastRow; $i++) {
+            $cellVal = $fSheet.Cells.Item($i, 3).Value2
+            $rowColor = $fSheet.Rows.Item($i).Interior.Color
+            if ($cellVal -and $rowColor -ne 65535) {
+                $totalActiveJobs++
+            }
+        }
+    }
+
+    # Count total placements in placed tab
+    $totalPlacements = 0
+    if ($sheetNames -contains "placed") {
+        $pSheet = $forecastWorkbook.Sheets.Item("placed")
+        $pLastRow = $pSheet.UsedRange.Rows.Count
+        for ($i = 3; $i -le $pLastRow; $i++) {
+            if ($pSheet.Cells.Item($i, 2).Value2) {
+                $totalPlacements++
+            }
+        }
+    }
+
+    # Find or create the log log sheet
+    $logSheet = $null
+    foreach ($sheet in $forecastWorkbook.Sheets) {
+        if ($sheet.Name -eq "log log") {
+            $logSheet = $sheet
+            break
+        }
+    }
+    if (-not $logSheet) {
+        $logSheet = $forecastWorkbook.Sheets.Add()
+        $logSheet.Name = "log log"
+        $logSheet.Cells.Item(1, 1) = "Date"
+        $logSheet.Cells.Item(1, 2) = "New Jobs Added"
+        $logSheet.Cells.Item(1, 3) = "New Placements Added"
+        $logSheet.Cells.Item(1, 4) = "Total Active Jobs"
+        $logSheet.Cells.Item(1, 5) = "Total Placements"
+        $logSheet.Cells.Item(1, 6) = "Highlighted Jobs"
+        Write-Log "Created new 'log log' tab with headers"
+    }
+
+    # Find next empty row (after header)
+    $logNextRow = 2
+    while ($logSheet.Cells.Item($logNextRow, 1).Value2) {
+        $logNextRow++
+    }
+
+    # Append this run's data
+    $logSheet.Cells.Item($logNextRow, 1) = (Get-Date -Format "yyyy-MM-dd HH:mm:ss")
+    $logSheet.Cells.Item($logNextRow, 2) = if ($addedCount)     { $addedCount }     else { 0 }
+    $logSheet.Cells.Item($logNextRow, 3) = if ($newCount)       { $newCount }       else { 0 }
+    $logSheet.Cells.Item($logNextRow, 4) = $totalActiveJobs
+    $logSheet.Cells.Item($logNextRow, 5) = $totalPlacements
+    $logSheet.Cells.Item($logNextRow, 6) = if ($highlightedCount) { $highlightedCount } else { 0 }
+    Write-Log "Log log tab updated (row $logNextRow): NewJobs=$addedCount, NewPlacements=$newCount, ActiveJobs=$totalActiveJobs, TotalPlacements=$totalPlacements, Highlighted=$highlightedCount"
+
     # ========== SAVE FORECAST TOOL ==========
     Write-Log "Saving Forecast Tool file..."
-    $forecastWorkbook.Save()
+    $forecastSavePath = Join-Path $forecastToolPath "Forecast Tool $dateStamp.xlsx"
+    $forecastWorkbook.SaveAs($forecastSavePath, 51)
     $forecastWorkbook.Close($false)
-    Write-Log "Forecast Tool saved successfully"
+    Write-Log "Forecast Tool saved as 'Forecast Tool $dateStamp.xlsx'"
 
     Write-Log "Automation completed successfully!"
 
