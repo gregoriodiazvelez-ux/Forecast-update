@@ -297,89 +297,106 @@ try {
 
     # ========== UPDATE LOG LOG TAB ==========
     Write-Log "Updating 'log log' tab..."
+    try {
+        $ErrorActionPreference = "Stop"
 
-    # Count total active jobs (non-highlighted) in forecast tab
-    $totalActiveJobs = 0
-    if ($sheetNames -contains "forecast") {
-        $fSheet = $forecastWorkbook.Sheets.Item("forecast")
-        $fLastRow = $fSheet.UsedRange.Rows.Count
-        for ($i = 4; $i -le $fLastRow; $i++) {
-            $cellVal = $fSheet.Cells.Item($i, 3).Value2
-            $rowColor = $fSheet.Rows.Item($i).Interior.Color
-            if ($cellVal -and $rowColor -ne 65535) {
-                $totalActiveJobs++
+        # Step 1 — count active jobs
+        Write-Log "  [LL-1] Counting active jobs. sheetNames contains 'forecast': $($sheetNames -contains 'forecast')"
+        $totalActiveJobs = 0
+        if ($sheetNames -contains "forecast") {
+            Write-Log "  [LL-2] Opening forecast sheet..."
+            $fSheet = $forecastWorkbook.Sheets.Item("forecast")
+            $fLastRow = $fSheet.UsedRange.Rows.Count
+            Write-Log "  [LL-3] Forecast last row: $fLastRow"
+            for ($i = 4; $i -le $fLastRow; $i++) {
+                $cellVal = $fSheet.Cells.Item($i, 3).Value2
+                $rowColor = $fSheet.Rows.Item($i).Interior.Color
+                if ($cellVal -and $rowColor -ne 65535) { $totalActiveJobs++ }
             }
         }
-    }
+        Write-Log "  [LL-4] totalActiveJobs=$totalActiveJobs"
 
-    # Count total placements in placed tab
-    $totalPlacements = 0
-    if ($sheetNames -contains "placed") {
-        $pSheet = $forecastWorkbook.Sheets.Item("placed")
-        $pLastRow = $pSheet.UsedRange.Rows.Count
-        for ($i = 3; $i -le $pLastRow; $i++) {
-            if ($pSheet.Cells.Item($i, 2).Value2) {
-                $totalPlacements++
+        # Step 2 — count placements
+        Write-Log "  [LL-5] Counting placements. sheetNames contains 'placed': $($sheetNames -contains 'placed')"
+        $totalPlacements = 0
+        if ($sheetNames -contains "placed") {
+            Write-Log "  [LL-6] Opening placed sheet..."
+            $pSheet = $forecastWorkbook.Sheets.Item("placed")
+            $pLastRow = $pSheet.UsedRange.Rows.Count
+            Write-Log "  [LL-7] Placed last row: $pLastRow"
+            for ($i = 3; $i -le $pLastRow; $i++) {
+                if ($pSheet.Cells.Item($i, 2).Value2) { $totalPlacements++ }
             }
         }
-    }
+        Write-Log "  [LL-8] totalPlacements=$totalPlacements"
 
-    # Find the log log sheet (same pattern used everywhere else in this script)
-    if (-not ($sheetNames -contains "log log")) {
-        Write-Log "WARNING: 'log log' tab not found — skipping log update"
-    } else {
-        $logSheet = $forecastWorkbook.Sheets.Item("log log")
-        Write-Log "Found log log sheet. ListObjects count: $($logSheet.ListObjects.Count)"
-        for ($li = 1; $li -le $logSheet.ListObjects.Count; $li++) {
-            $lo = $logSheet.ListObjects.Item($li)
-            Write-Log "  Table[$li]: '$($lo.Name)' at col $($lo.Range.Column)"
-        }
-
-        # Locate the two Excel Tables by name
-        $logListObj1 = $null  # CumulativeData — accumulating log
-        $logListObj2 = $null  # LastRunData    — latest run only
-        try { $logListObj1 = $logSheet.ListObjects.Item("CumulativeData") } catch { Write-Log "  CumulativeData lookup error: $_" }
-        try { $logListObj2 = $logSheet.ListObjects.Item("LastRunData")    } catch { Write-Log "  LastRunData lookup error: $_" }
-        Write-Log "CumulativeData found: $($null -ne $logListObj1) | LastRunData found: $($null -ne $logListObj2)"
-
-        # ---- Accumulating table (A-G): add row at top, renumber IDs ----
-        if ($logListObj1) {
-            $newRow1 = $logListObj1.ListRows.Add(1)  # Position 1 = top of table data
-            $newRow1.Range.Cells.Item(1, 1) = 0      # ID placeholder, renumbered below
-            $newRow1.Range.Cells.Item(1, 2) = (Get-Date -Format "yyyy-MM-dd HH:mm:ss")
-            $newRow1.Range.Cells.Item(1, 3) = if ($addedCount)      { $addedCount }      else { 0 }
-            $newRow1.Range.Cells.Item(1, 4) = if ($newCount)        { $newCount }        else { 0 }
-            $newRow1.Range.Cells.Item(1, 5) = $totalActiveJobs
-            $newRow1.Range.Cells.Item(1, 6) = $totalPlacements
-            $newRow1.Range.Cells.Item(1, 7) = if ($highlightedCount) { $highlightedCount } else { 0 }
-
-            # Renumber IDs: oldest row = ID 1, newest row (top) = highest ID
-            $totalRows = $logListObj1.ListRows.Count
-            for ($r = 1; $r -le $totalRows; $r++) {
-                $logListObj1.ListRows.Item($r).Range.Cells.Item(1, 1) = $totalRows - ($r - 1)
-            }
-            Write-Log "Log log tab updated: $($logListObj1.ListRows.Count) total entries, newest at top (ID 1)"
+        # Step 3 — find log log sheet
+        Write-Log "  [LL-9] sheetNames: $($sheetNames -join ', ')"
+        Write-Log "  [LL-10] sheetNames contains 'log log': $($sheetNames -contains 'log log')"
+        if (-not ($sheetNames -contains "log log")) {
+            Write-Log "  WARNING: 'log log' tab not found in sheetNames — skipping log update"
         } else {
-            Write-Log "WARNING: 'CumulativeData' table not found in log log tab"
-        }
-
-        # ---- Latest-only table (I-O): clear all rows, write single row with ID 1 ----
-        if ($logListObj2) {
-            while ($logListObj2.ListRows.Count -gt 0) {
-                $logListObj2.ListRows.Item(1).Delete()
+            Write-Log "  [LL-11] Opening log log sheet..."
+            $logSheet = $forecastWorkbook.Sheets.Item("log log")
+            Write-Log "  [LL-12] ListObjects count: $($logSheet.ListObjects.Count)"
+            for ($li = 1; $li -le $logSheet.ListObjects.Count; $li++) {
+                $lo = $logSheet.ListObjects.Item($li)
+                Write-Log "  Table[$li]: '$($lo.Name)' at col $($lo.Range.Column)"
             }
-            $newRow2 = $logListObj2.ListRows.Add()
-            $newRow2.Range.Cells.Item(1, 1) = 1  # ID always 1
-            $newRow2.Range.Cells.Item(1, 2) = (Get-Date -Format "yyyy-MM-dd HH:mm:ss")
-            $newRow2.Range.Cells.Item(1, 3) = if ($addedCount)      { $addedCount }      else { 0 }
-            $newRow2.Range.Cells.Item(1, 4) = if ($newCount)        { $newCount }        else { 0 }
-            $newRow2.Range.Cells.Item(1, 5) = $totalActiveJobs
-            $newRow2.Range.Cells.Item(1, 6) = $totalPlacements
-            $newRow2.Range.Cells.Item(1, 7) = if ($highlightedCount) { $highlightedCount } else { 0 }
-            Write-Log "Latest run summary written to second table in log log tab (ID=1)"
-        } else {
-            Write-Log "WARNING: 'LastRunData' table not found in log log tab"
+
+            Write-Log "  [LL-13] Looking up CumulativeData table..."
+            $logListObj1 = $null
+            $logListObj2 = $null
+            try { $logListObj1 = $logSheet.ListObjects.Item("CumulativeData") } catch { Write-Log "  CumulativeData lookup error: $_" }
+            Write-Log "  [LL-14] Looking up LastRunData table..."
+            try { $logListObj2 = $logSheet.ListObjects.Item("LastRunData")    } catch { Write-Log "  LastRunData lookup error: $_" }
+            Write-Log "  [LL-15] CumulativeData found: $($null -ne $logListObj1) | LastRunData found: $($null -ne $logListObj2)"
+
+            # ---- Accumulating table: add row at top, renumber IDs ----
+            if ($logListObj1) {
+                Write-Log "  [LL-16] Adding row to CumulativeData at position 1..."
+                $newRow1 = $logListObj1.ListRows.Add(1)
+                Write-Log "  [LL-17] Writing cells..."
+                $newRow1.Range.Cells.Item(1, 1) = 0
+                $newRow1.Range.Cells.Item(1, 2) = (Get-Date -Format "yyyy-MM-dd HH:mm:ss")
+                $newRow1.Range.Cells.Item(1, 3) = if ($addedCount)      { $addedCount }      else { 0 }
+                $newRow1.Range.Cells.Item(1, 4) = if ($newCount)        { $newCount }        else { 0 }
+                $newRow1.Range.Cells.Item(1, 5) = $totalActiveJobs
+                $newRow1.Range.Cells.Item(1, 6) = $totalPlacements
+                $newRow1.Range.Cells.Item(1, 7) = if ($highlightedCount) { $highlightedCount } else { 0 }
+                Write-Log "  [LL-18] Renumbering IDs..."
+                $totalRows = $logListObj1.ListRows.Count
+                for ($r = 1; $r -le $totalRows; $r++) {
+                    $logListObj1.ListRows.Item($r).Range.Cells.Item(1, 1) = $totalRows - ($r - 1)
+                }
+                Write-Log "  [LL-19] CumulativeData done: $totalRows total entries"
+            } else {
+                Write-Log "  WARNING: 'CumulativeData' table not found in log log tab"
+            }
+
+            # ---- Latest-only table: clear all rows, write single row ----
+            if ($logListObj2) {
+                Write-Log "  [LL-20] Clearing LastRunData rows..."
+                while ($logListObj2.ListRows.Count -gt 0) { $logListObj2.ListRows.Item(1).Delete() }
+                Write-Log "  [LL-21] Adding new row to LastRunData..."
+                $newRow2 = $logListObj2.ListRows.Add()
+                $newRow2.Range.Cells.Item(1, 1) = 1
+                $newRow2.Range.Cells.Item(1, 2) = (Get-Date -Format "yyyy-MM-dd HH:mm:ss")
+                $newRow2.Range.Cells.Item(1, 3) = if ($addedCount)      { $addedCount }      else { 0 }
+                $newRow2.Range.Cells.Item(1, 4) = if ($newCount)        { $newCount }        else { 0 }
+                $newRow2.Range.Cells.Item(1, 5) = $totalActiveJobs
+                $newRow2.Range.Cells.Item(1, 6) = $totalPlacements
+                $newRow2.Range.Cells.Item(1, 7) = if ($highlightedCount) { $highlightedCount } else { 0 }
+                Write-Log "  [LL-22] LastRunData written successfully"
+            } else {
+                Write-Log "  WARNING: 'LastRunData' table not found in log log tab"
+            }
         }
+    } catch {
+        Write-Log "  ERROR in log log section: $_"
+        Write-Log "  Stack trace: $($_.ScriptStackTrace)"
+    } finally {
+        $ErrorActionPreference = "Continue"
     }
 
     # ========== SAVE FORECAST TOOL ==========
