@@ -300,7 +300,7 @@ try {
     try {
         $ErrorActionPreference = "Stop"
 
-        # Step 1 — count active jobs
+        # Step 1 -- count active jobs
         Write-Log "  [LL-1] Counting active jobs. sheetNames contains 'forecast': $($sheetNames -contains 'forecast')"
         $totalActiveJobs = 0
         if ($sheetNames -contains "forecast") {
@@ -316,7 +316,7 @@ try {
         }
         Write-Log "  [LL-4] totalActiveJobs=$totalActiveJobs"
 
-        # Step 2 — count placements
+        # Step 2 -- count placements
         Write-Log "  [LL-5] Counting placements. sheetNames contains 'placed': $($sheetNames -contains 'placed')"
         $totalPlacements = 0
         if ($sheetNames -contains "placed") {
@@ -330,11 +330,11 @@ try {
         }
         Write-Log "  [LL-8] totalPlacements=$totalPlacements"
 
-        # Step 3 — find log log sheet
+        # Step 3 -- find log log sheet
         Write-Log "  [LL-9] sheetNames: $($sheetNames -join ', ')"
         Write-Log "  [LL-10] sheetNames contains 'log log': $($sheetNames -contains 'log log')"
         if (-not ($sheetNames -contains "log log")) {
-            Write-Log "  WARNING: 'log log' tab not found in sheetNames — skipping log update"
+            Write-Log "  WARNING: 'log log' tab not found in sheetNames -- skipping log update"
         } else {
             Write-Log "  [LL-11] Opening log log sheet..."
             $logSheet = $forecastWorkbook.Sheets.Item("log log")
@@ -405,7 +405,7 @@ try {
     $alreadyNamed = ($forecastToolFile.FullName -ieq $forecastSavePath)
 
     if ($alreadyNamed) {
-        # File is already named with today's date — save in place
+        # File is already named with today's date -- save in place
         $forecastWorkbook.Save()
         Write-Log "Forecast Tool saved in place (already named 'Forecast Tool $dateStamp.xlsx')"
     } else {
