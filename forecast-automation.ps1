@@ -7,11 +7,7 @@ $outputPath = "C:\Users\usuario\OneDrive - talentorecruiting.com\Forecasting\Dat
 $forecastToolPath = "C:\Users\usuario\OneDrive - talentorecruiting.com\Forecasting"
 
 # Email Configuration
-$emailFrom     = "your-email@talentorecruiting.com"   # Sender address (your Office 365 account)
-$emailTo       = "your-email@talentorecruiting.com"   # Recipient(s) - use @("a@x.com","b@x.com") for multiple
-$emailPassword = "your-password"                       # Office 365 password (or App Password if MFA enabled)
-$smtpServer    = "smtp.office365.com"
-$smtpPort      = 587
+$emailTo = "your-email@talentorecruiting.com"   # Recipient(s) - use @("a@x.com","b@x.com") for multiple
 
 # Log function
 function Write-Log {
@@ -144,22 +140,13 @@ function Send-EmailNotification {
 "@
         }
 
-        $smtp = New-Object System.Net.Mail.SmtpClient($smtpServer, $smtpPort)
-        $smtp.EnableSsl = $true
-        $smtp.Credentials = New-Object System.Net.NetworkCredential($emailFrom, $emailPassword)
-
-        $message = New-Object System.Net.Mail.MailMessage
-        $message.From = $emailFrom
-        if ($emailTo -is [array]) {
-            foreach ($addr in $emailTo) { $message.To.Add($addr) }
-        } else {
-            $message.To.Add($emailTo)
-        }
-        $message.Subject = $subject
-        $message.Body = $body
-        $message.IsBodyHtml = $true
-
-        $smtp.Send($message)
+        # Use Outlook COM object — works with Office 365 even when SMTP AUTH is disabled
+        $outlook = New-Object -ComObject Outlook.Application
+        $mail = $outlook.CreateItem(0) # 0 = olMailItem
+        $mail.To = if ($emailTo -is [array]) { $emailTo -join ";" } else { $emailTo }
+        $mail.Subject = $subject
+        $mail.HTMLBody = $body
+        $mail.Send()
         Write-Log "Email notification sent to $emailTo"
     } catch {
         Write-Log "WARNING: Failed to send email notification: $_"
