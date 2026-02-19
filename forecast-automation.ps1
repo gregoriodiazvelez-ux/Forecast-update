@@ -359,6 +359,16 @@ try {
     $logSheet.Cells.Item($logNextRow, 6) = if ($highlightedCount) { $highlightedCount } else { 0 }
     Write-Log "Log log tab updated (row $logNextRow): NewJobs=$addedCount, NewPlacements=$newCount, ActiveJobs=$totalActiveJobs, TotalPlacements=$totalPlacements, Highlighted=$highlightedCount"
 
+    # Replace I-N table with latest run data only (clear data rows, preserve header row 1)
+    $logSheet.Range($logSheet.Cells.Item(2, 9), $logSheet.Cells.Item(1000, 14)).ClearContents()
+    $logSheet.Cells.Item(2, 9)  = (Get-Date -Format "yyyy-MM-dd HH:mm:ss")
+    $logSheet.Cells.Item(2, 10) = if ($addedCount)      { $addedCount }      else { 0 }
+    $logSheet.Cells.Item(2, 11) = if ($newCount)        { $newCount }        else { 0 }
+    $logSheet.Cells.Item(2, 12) = $totalActiveJobs
+    $logSheet.Cells.Item(2, 13) = $totalPlacements
+    $logSheet.Cells.Item(2, 14) = if ($highlightedCount) { $highlightedCount } else { 0 }
+    Write-Log "Latest run summary written to I-N table in log log tab"
+
     # ========== SAVE FORECAST TOOL ==========
     Write-Log "Saving Forecast Tool file..."
     $forecastSavePath = Join-Path $forecastToolPath "Forecast Tool $dateStamp.xlsx"
