@@ -335,13 +335,11 @@ try {
     if (-not $logSheet) {
         Write-Log "WARNING: 'log log' tab not found — skipping log update"
     } else {
-        # Locate the two Excel Tables (ListObjects) by their starting column
-        $logListObj1 = $null  # Accumulating table — starts at col A (1)
-        $logListObj2 = $null  # Latest-only table  — starts at col I (9)
-        foreach ($lo in $logSheet.ListObjects) {
-            if     ($lo.Range.Column -eq 1) { $logListObj1 = $lo }
-            elseif ($lo.Range.Column -eq 9) { $logListObj2 = $lo }
-        }
+        # Locate the two Excel Tables by name
+        $logListObj1 = $null  # CumulativeData — accumulating log
+        $logListObj2 = $null  # LastRunData    — latest run only
+        try { $logListObj1 = $logSheet.ListObjects.Item("CumulativeData") } catch {}
+        try { $logListObj2 = $logSheet.ListObjects.Item("LastRunData")    } catch {}
 
         # ---- Accumulating table (A-G): add row at top, renumber IDs ----
         if ($logListObj1) {
@@ -361,7 +359,7 @@ try {
             }
             Write-Log "Log log tab updated: $($logListObj1.ListRows.Count) total entries, newest at top (ID 1)"
         } else {
-            Write-Log "WARNING: Accumulating table not found in log log tab (expected at col A)"
+            Write-Log "WARNING: 'CumulativeData' table not found in log log tab"
         }
 
         # ---- Latest-only table (I-O): clear all rows, write single row with ID 1 ----
@@ -379,7 +377,7 @@ try {
             $newRow2.Range.Cells.Item(1, 7) = if ($highlightedCount) { $highlightedCount } else { 0 }
             Write-Log "Latest run summary written to second table in log log tab (ID=1)"
         } else {
-            Write-Log "WARNING: Latest-only table not found in log log tab (expected at col I)"
+            Write-Log "WARNING: 'LastRunData' table not found in log log tab"
         }
     }
 
