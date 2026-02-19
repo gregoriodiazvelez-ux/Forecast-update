@@ -354,9 +354,10 @@ try {
             $newRow1.Range.Cells.Item(1, 6) = $totalPlacements
             $newRow1.Range.Cells.Item(1, 7) = if ($highlightedCount) { $highlightedCount } else { 0 }
 
-            # Renumber IDs: table row 1 = ID 1 (newest), row 2 = ID 2, etc.
-            for ($r = 1; $r -le $logListObj1.ListRows.Count; $r++) {
-                $logListObj1.ListRows.Item($r).Range.Cells.Item(1, 1) = $r
+            # Renumber IDs: oldest row = ID 1, newest row (top) = highest ID
+            $totalRows = $logListObj1.ListRows.Count
+            for ($r = 1; $r -le $totalRows; $r++) {
+                $logListObj1.ListRows.Item($r).Range.Cells.Item(1, 1) = $totalRows - ($r - 1)
             }
             Write-Log "Log log tab updated: $($logListObj1.ListRows.Count) total entries, newest at top (ID 1)"
         } else {
