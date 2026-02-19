@@ -324,7 +324,7 @@ try {
         }
     }
 
-    # Find or create the log log sheet
+    # Find the log log sheet
     $logSheet = $null
     foreach ($sheet in $forecastWorkbook.Sheets) {
         if ($sheet.Name -eq "log log") {
@@ -333,46 +333,54 @@ try {
         }
     }
     if (-not $logSheet) {
-        $logSheet = $forecastWorkbook.Sheets.Add()
-        $logSheet.Name = "log log"
-        $logSheet.Cells.Item(1, 1) = "ID"
-        $logSheet.Cells.Item(1, 2) = "Date"
-        $logSheet.Cells.Item(1, 3) = "New Jobs Added"
-        $logSheet.Cells.Item(1, 4) = "New Placements Added"
-        $logSheet.Cells.Item(1, 5) = "Total Active Jobs"
-        $logSheet.Cells.Item(1, 6) = "Total Placements"
-        $logSheet.Cells.Item(1, 7) = "Highlighted Jobs"
-        Write-Log "Created new 'log log' tab with headers"
+        Write-Log "WARNING: 'log log' tab not found — skipping log update"
+    } else {
+        # Locate the two Excel Tables (ListObjects) by their starting column
+        $logListObj1 = $null  # Accumulating table — starts at col A (1)
+        $logListObj2 = $null  # Latest-only table  — starts at col I (9)
+        foreach ($lo in $logSheet.ListObjects) {
+            if     ($lo.Range.Column -eq 1) { $logListObj1 = $lo }
+            elseif ($lo.Range.Column -eq 9) { $logListObj2 = $lo }
+        }
+
+        # ---- Accumulating table (A-G): add row at top, renumber IDs ----
+        if ($logListObj1) {
+            $newRow1 = $logListObj1.ListRows.Add(1)  # Position 1 = top of table data
+            $newRow1.Range.Cells.Item(1, 1) = 0      # ID placeholder, renumbered below
+            $newRow1.Range.Cells.Item(1, 2) = (Get-Date -Format "yyyy-MM-dd HH:mm:ss")
+            $newRow1.Range.Cells.Item(1, 3) = if ($addedCount)      { $addedCount }      else { 0 }
+            $newRow1.Range.Cells.Item(1, 4) = if ($newCount)        { $newCount }        else { 0 }
+            $newRow1.Range.Cells.Item(1, 5) = $totalActiveJobs
+            $newRow1.Range.Cells.Item(1, 6) = $totalPlacements
+            $newRow1.Range.Cells.Item(1, 7) = if ($highlightedCount) { $highlightedCount } else { 0 }
+
+            # Renumber IDs: table row 1 = ID 1 (newest), row 2 = ID 2, etc.
+            for ($r = 1; $r -le $logListObj1.ListRows.Count; $r++) {
+                $logListObj1.ListRows.Item($r).Range.Cells.Item(1, 1) = $r
+            }
+            Write-Log "Log log tab updated: $($logListObj1.ListRows.Count) total entries, newest at top (ID 1)"
+        } else {
+            Write-Log "WARNING: Accumulating table not found in log log tab (expected at col A)"
+        }
+
+        # ---- Latest-only table (I-O): clear all rows, write single row with ID 1 ----
+        if ($logListObj2) {
+            while ($logListObj2.ListRows.Count -gt 0) {
+                $logListObj2.ListRows.Item(1).Delete()
+            }
+            $newRow2 = $logListObj2.ListRows.Add()
+            $newRow2.Range.Cells.Item(1, 1) = 1  # ID always 1
+            $newRow2.Range.Cells.Item(1, 2) = (Get-Date -Format "yyyy-MM-dd HH:mm:ss")
+            $newRow2.Range.Cells.Item(1, 3) = if ($addedCount)      { $addedCount }      else { 0 }
+            $newRow2.Range.Cells.Item(1, 4) = if ($newCount)        { $newCount }        else { 0 }
+            $newRow2.Range.Cells.Item(1, 5) = $totalActiveJobs
+            $newRow2.Range.Cells.Item(1, 6) = $totalPlacements
+            $newRow2.Range.Cells.Item(1, 7) = if ($highlightedCount) { $highlightedCount } else { 0 }
+            Write-Log "Latest run summary written to second table in log log tab (ID=1)"
+        } else {
+            Write-Log "WARNING: Latest-only table not found in log log tab (expected at col I)"
+        }
     }
-
-    # Insert a new row at position 2 (just below header) so newest is always on top
-    $logSheet.Rows.Item(2).Insert()
-    $logSheet.Cells.Item(2, 1) = 0  # Placeholder — renumbered below
-    $logSheet.Cells.Item(2, 2) = (Get-Date -Format "yyyy-MM-dd HH:mm:ss")
-    $logSheet.Cells.Item(2, 3) = if ($addedCount)      { $addedCount }      else { 0 }
-    $logSheet.Cells.Item(2, 4) = if ($newCount)        { $newCount }        else { 0 }
-    $logSheet.Cells.Item(2, 5) = $totalActiveJobs
-    $logSheet.Cells.Item(2, 6) = $totalPlacements
-    $logSheet.Cells.Item(2, 7) = if ($highlightedCount) { $highlightedCount } else { 0 }
-
-    # Renumber IDs: row 2 = 1 (newest), row 3 = 2, etc.
-    $idRow = 2
-    while ($logSheet.Cells.Item($idRow, 2).Value2) {
-        $logSheet.Cells.Item($idRow, 1) = $idRow - 1
-        $idRow++
-    }
-    Write-Log "Log log tab updated: $($idRow - 2) total entries, newest at top (ID 1)"
-
-    # Replace I-O table with latest run data only — ID col=9(I), data cols=10-15(J-O)
-    $logSheet.Range($logSheet.Cells.Item(2, 9), $logSheet.Cells.Item(1000, 15)).ClearContents()
-    $logSheet.Cells.Item(2, 9)  = 1  # ID always 1
-    $logSheet.Cells.Item(2, 10) = (Get-Date -Format "yyyy-MM-dd HH:mm:ss")
-    $logSheet.Cells.Item(2, 11) = if ($addedCount)      { $addedCount }      else { 0 }
-    $logSheet.Cells.Item(2, 12) = if ($newCount)        { $newCount }        else { 0 }
-    $logSheet.Cells.Item(2, 13) = $totalActiveJobs
-    $logSheet.Cells.Item(2, 14) = $totalPlacements
-    $logSheet.Cells.Item(2, 15) = if ($highlightedCount) { $highlightedCount } else { 0 }
-    Write-Log "Latest run summary written to I-O table in log log tab (ID=1)"
 
     # ========== SAVE FORECAST TOOL ==========
     Write-Log "Saving Forecast Tool file..."
