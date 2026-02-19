@@ -335,39 +335,44 @@ try {
     if (-not $logSheet) {
         $logSheet = $forecastWorkbook.Sheets.Add()
         $logSheet.Name = "log log"
-        $logSheet.Cells.Item(1, 1) = "Date"
-        $logSheet.Cells.Item(1, 2) = "New Jobs Added"
-        $logSheet.Cells.Item(1, 3) = "New Placements Added"
-        $logSheet.Cells.Item(1, 4) = "Total Active Jobs"
-        $logSheet.Cells.Item(1, 5) = "Total Placements"
-        $logSheet.Cells.Item(1, 6) = "Highlighted Jobs"
+        $logSheet.Cells.Item(1, 1) = "ID"
+        $logSheet.Cells.Item(1, 2) = "Date"
+        $logSheet.Cells.Item(1, 3) = "New Jobs Added"
+        $logSheet.Cells.Item(1, 4) = "New Placements Added"
+        $logSheet.Cells.Item(1, 5) = "Total Active Jobs"
+        $logSheet.Cells.Item(1, 6) = "Total Placements"
+        $logSheet.Cells.Item(1, 7) = "Highlighted Jobs"
         Write-Log "Created new 'log log' tab with headers"
     }
 
-    # Find next empty row (after header)
-    $logNextRow = 2
-    while ($logSheet.Cells.Item($logNextRow, 1).Value2) {
-        $logNextRow++
+    # Insert a new row at position 2 (just below header) so newest is always on top
+    $logSheet.Rows.Item(2).Insert()
+    $logSheet.Cells.Item(2, 1) = 0  # Placeholder — renumbered below
+    $logSheet.Cells.Item(2, 2) = (Get-Date -Format "yyyy-MM-dd HH:mm:ss")
+    $logSheet.Cells.Item(2, 3) = if ($addedCount)      { $addedCount }      else { 0 }
+    $logSheet.Cells.Item(2, 4) = if ($newCount)        { $newCount }        else { 0 }
+    $logSheet.Cells.Item(2, 5) = $totalActiveJobs
+    $logSheet.Cells.Item(2, 6) = $totalPlacements
+    $logSheet.Cells.Item(2, 7) = if ($highlightedCount) { $highlightedCount } else { 0 }
+
+    # Renumber IDs: row 2 = 1 (newest), row 3 = 2, etc.
+    $idRow = 2
+    while ($logSheet.Cells.Item($idRow, 2).Value2) {
+        $logSheet.Cells.Item($idRow, 1) = $idRow - 1
+        $idRow++
     }
+    Write-Log "Log log tab updated: $($idRow - 2) total entries, newest at top (ID 1)"
 
-    # Append this run's data
-    $logSheet.Cells.Item($logNextRow, 1) = (Get-Date -Format "yyyy-MM-dd HH:mm:ss")
-    $logSheet.Cells.Item($logNextRow, 2) = if ($addedCount)     { $addedCount }     else { 0 }
-    $logSheet.Cells.Item($logNextRow, 3) = if ($newCount)       { $newCount }       else { 0 }
-    $logSheet.Cells.Item($logNextRow, 4) = $totalActiveJobs
-    $logSheet.Cells.Item($logNextRow, 5) = $totalPlacements
-    $logSheet.Cells.Item($logNextRow, 6) = if ($highlightedCount) { $highlightedCount } else { 0 }
-    Write-Log "Log log tab updated (row $logNextRow): NewJobs=$addedCount, NewPlacements=$newCount, ActiveJobs=$totalActiveJobs, TotalPlacements=$totalPlacements, Highlighted=$highlightedCount"
-
-    # Replace I-N table with latest run data only (clear data rows, preserve header row 1)
-    $logSheet.Range($logSheet.Cells.Item(2, 9), $logSheet.Cells.Item(1000, 14)).ClearContents()
-    $logSheet.Cells.Item(2, 9)  = (Get-Date -Format "yyyy-MM-dd HH:mm:ss")
-    $logSheet.Cells.Item(2, 10) = if ($addedCount)      { $addedCount }      else { 0 }
-    $logSheet.Cells.Item(2, 11) = if ($newCount)        { $newCount }        else { 0 }
-    $logSheet.Cells.Item(2, 12) = $totalActiveJobs
-    $logSheet.Cells.Item(2, 13) = $totalPlacements
-    $logSheet.Cells.Item(2, 14) = if ($highlightedCount) { $highlightedCount } else { 0 }
-    Write-Log "Latest run summary written to I-N table in log log tab"
+    # Replace I-O table with latest run data only — ID col=9(I), data cols=10-15(J-O)
+    $logSheet.Range($logSheet.Cells.Item(2, 9), $logSheet.Cells.Item(1000, 15)).ClearContents()
+    $logSheet.Cells.Item(2, 9)  = 1  # ID always 1
+    $logSheet.Cells.Item(2, 10) = (Get-Date -Format "yyyy-MM-dd HH:mm:ss")
+    $logSheet.Cells.Item(2, 11) = if ($addedCount)      { $addedCount }      else { 0 }
+    $logSheet.Cells.Item(2, 12) = if ($newCount)        { $newCount }        else { 0 }
+    $logSheet.Cells.Item(2, 13) = $totalActiveJobs
+    $logSheet.Cells.Item(2, 14) = $totalPlacements
+    $logSheet.Cells.Item(2, 15) = if ($highlightedCount) { $highlightedCount } else { 0 }
+    Write-Log "Latest run summary written to I-O table in log log tab (ID=1)"
 
     # ========== SAVE FORECAST TOOL ==========
     Write-Log "Saving Forecast Tool file..."
