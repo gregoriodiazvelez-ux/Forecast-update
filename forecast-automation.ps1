@@ -366,6 +366,16 @@ try {
     $forecastWorkbook.Close($false)
     Write-Log "Forecast Tool saved as 'Forecast Tool $dateStamp.xlsx'"
 
+    # Move the original file to the Old subfolder
+    $oldFolderPath = Join-Path $forecastToolPath "Old"
+    if (-not (Test-Path $oldFolderPath)) {
+        New-Item -ItemType Directory -Path $oldFolderPath | Out-Null
+        Write-Log "Created 'Old' folder at $oldFolderPath"
+    }
+    $oldDestPath = Join-Path $oldFolderPath $forecastToolFile.Name
+    Move-Item -Path $forecastToolFile.FullName -Destination $oldDestPath -Force
+    Write-Log "Moved '$($forecastToolFile.Name)' to Old folder"
+
     Write-Log "Automation completed successfully!"
 
 } catch {
