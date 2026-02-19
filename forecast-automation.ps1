@@ -6,185 +6,12 @@ $downloadsPath = [System.IO.Path]::Combine($env:USERPROFILE, "Downloads")
 $outputPath = "C:\Users\usuario\OneDrive - talentorecruiting.com\Forecasting\Data"
 $forecastToolPath = "C:\Users\usuario\OneDrive - talentorecruiting.com\Forecasting"
 
-# Email Configuration
-# Setup: https://portal.azure.com → Azure AD → App registrations → New registration
-#   → Certificates & secrets → New client secret
-#   → API permissions → Add → Microsoft Graph → Application → Mail.Send → Grant admin consent
-# Load credentials from local config file (not stored in git)
-$configFile = Join-Path $PSScriptRoot "config.ps1"
-if (Test-Path $configFile) {
-    . $configFile
-} else {
-    throw "config.ps1 not found. Copy config.ps1.example to config.ps1 and fill in your values."
-}
-
 # Log function
 function Write-Log {
     param([string]$Message)
     $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
     Write-Host "[$timestamp] $Message"
     Add-Content -Path "$outputPath\automation.log" -Value "[$timestamp] $Message"
-}
-
-# Email notification function
-function Send-EmailNotification {
-    param(
-        [int]$NewPlacements,
-        [int]$NewForecastJobs,
-        [int]$HighlightedJobs,
-        [bool]$Success = $true,
-        [string]$ErrorMessage = ""
-    )
-    try {
-        $runDate = Get-Date -Format "MMMM dd, yyyy"
-        $runTime = Get-Date -Format "hh:mm tt"
-
-        if ($Success) {
-            $subject = "Forecast Update Summary - $runDate"
-
-            # Calculate SVG bar heights (chart baseline at y=175, max chart height 140px)
-            $maxVal = [Math]::Max([Math]::Max($NewPlacements, $NewForecastJobs), [Math]::Max($HighlightedJobs, 1))
-            $base   = 175
-            $chartH = 140
-            $bar1H  = [int][Math]::Round(($NewPlacements  / $maxVal) * $chartH)
-            $bar2H  = [int][Math]::Round(($NewForecastJobs / $maxVal) * $chartH)
-            $bar3H  = [int][Math]::Round(($HighlightedJobs / $maxVal) * $chartH)
-            $bar1Y  = $base - $bar1H
-            $bar2Y  = $base - $bar2H
-            $bar3Y  = $base - $bar3H
-            $bar1TY = $bar1Y - 8
-            $bar2TY = $bar2Y - 8
-            $bar3TY = $bar3Y - 8
-
-            $body = @"
-<!DOCTYPE html>
-<html>
-<body style="margin:0; padding:20px; background-color:#f0f4f0; font-family:Arial,sans-serif;">
-  <div style="max-width:580px; margin:0 auto; background:white; border-radius:12px; overflow:hidden; box-shadow:0 4px 20px rgba(0,0,0,0.12);">
-
-    <!-- Header -->
-    <div style="background:linear-gradient(135deg,#1B5E20,#388E3C); padding:28px 30px; text-align:center;">
-      <div style="font-size:22px; font-weight:bold; color:white; letter-spacing:2px;">TALENTO RECRUITING</div>
-      <div style="font-size:14px; color:#A5D6A7; margin-top:6px;">Forecast Automation Report</div>
-      <div style="font-size:12px; color:#C8E6C9; margin-top:4px;">$runDate &#8226; $runTime</div>
-    </div>
-
-    <!-- Bar Chart -->
-    <div style="padding:28px 30px 10px;">
-      <p style="text-align:center; color:#666; font-size:13px; margin:0 0 20px;">Weekly update completed successfully. Here are this week's results:</p>
-      <svg width="100%" viewBox="0 0 500 210" xmlns="http://www.w3.org/2000/svg">
-        <!-- Grid lines -->
-        <line x1="50" y1="175" x2="470" y2="175" stroke="#ccc" stroke-width="1.5"/>
-        <line x1="50" y1="140" x2="470" y2="140" stroke="#eee" stroke-width="1" stroke-dasharray="4,3"/>
-        <line x1="50" y1="105" x2="470" y2="105" stroke="#eee" stroke-width="1" stroke-dasharray="4,3"/>
-        <line x1="50" y1="70"  x2="470" y2="70"  stroke="#eee" stroke-width="1" stroke-dasharray="4,3"/>
-        <line x1="50" y1="35"  x2="470" y2="35"  stroke="#eee" stroke-width="1" stroke-dasharray="4,3"/>
-        <!-- Bar 1: New Placements (dark green) -->
-        <rect x="80" y="$bar1Y" width="90" height="$bar1H" fill="#2E7D32" rx="5"/>
-        <text x="125" y="$bar1TY" text-anchor="middle" fill="#1B5E20" font-size="15" font-weight="bold" font-family="Arial">$NewPlacements</text>
-        <text x="125" y="195" text-anchor="middle" fill="#555" font-size="11" font-family="Arial">New Placements</text>
-        <!-- Bar 2: New Forecast Jobs (light green) -->
-        <rect x="205" y="$bar2Y" width="90" height="$bar2H" fill="#66BB6A" rx="5"/>
-        <text x="250" y="$bar2TY" text-anchor="middle" fill="#2E7D32" font-size="15" font-weight="bold" font-family="Arial">$NewForecastJobs</text>
-        <text x="250" y="195" text-anchor="middle" fill="#555" font-size="11" font-family="Arial">New Jobs Added</text>
-        <!-- Bar 3: Flagged Yellow -->
-        <rect x="330" y="$bar3Y" width="90" height="$bar3H" fill="#FDD835" rx="5"/>
-        <text x="375" y="$bar3TY" text-anchor="middle" fill="#F57F17" font-size="15" font-weight="bold" font-family="Arial">$HighlightedJobs</text>
-        <text x="375" y="195" text-anchor="middle" fill="#555" font-size="11" font-family="Arial">Flagged Yellow</text>
-      </svg>
-    </div>
-
-    <!-- Stat Cards -->
-    <div style="padding:0 30px 28px;">
-      <table width="100%" cellpadding="0" cellspacing="8" style="border-collapse:separate;">
-        <tr>
-          <td style="background:#E8F5E9; border-radius:10px; padding:16px 12px; text-align:center; width:33%;">
-            <div style="font-size:36px; font-weight:bold; color:#2E7D32; line-height:1;">$NewPlacements</div>
-            <div style="font-size:10px; color:#4CAF50; margin-top:5px; letter-spacing:1px;">NEW PLACEMENTS</div>
-          </td>
-          <td style="background:#F1F8E9; border-radius:10px; padding:16px 12px; text-align:center; width:33%;">
-            <div style="font-size:36px; font-weight:bold; color:#388E3C; line-height:1;">$NewForecastJobs</div>
-            <div style="font-size:10px; color:#7CB342; margin-top:5px; letter-spacing:1px;">NEW JOBS ADDED</div>
-          </td>
-          <td style="background:#FFFDE7; border-radius:10px; padding:16px 12px; text-align:center; width:33%;">
-            <div style="font-size:36px; font-weight:bold; color:#F9A825; line-height:1;">$HighlightedJobs</div>
-            <div style="font-size:10px; color:#FFA000; margin-top:5px; letter-spacing:1px;">FLAGGED YELLOW</div>
-          </td>
-        </tr>
-      </table>
-    </div>
-
-    <!-- Footer -->
-    <div style="background:#F5F5F5; padding:14px 30px; text-align:center; border-top:1px solid #E8E8E8;">
-      <p style="color:#BDBDBD; font-size:11px; margin:0;">Automated by Forecast Update Automation &#8226; Talento Recruiting</p>
-    </div>
-  </div>
-</body>
-</html>
-"@
-        } else {
-            $subject = "Forecast Update FAILED - $runDate"
-            $body = @"
-<!DOCTYPE html>
-<html>
-<body style="margin:0; padding:20px; background-color:#fce4e4; font-family:Arial,sans-serif;">
-  <div style="max-width:580px; margin:0 auto; background:white; border-radius:12px; overflow:hidden; box-shadow:0 4px 20px rgba(0,0,0,0.12);">
-    <div style="background:linear-gradient(135deg,#B71C1C,#C62828); padding:28px 30px; text-align:center;">
-      <div style="font-size:22px; font-weight:bold; color:white; letter-spacing:2px;">TALENTO RECRUITING</div>
-      <div style="font-size:14px; color:#EF9A9A; margin-top:6px;">Forecast Automation Report</div>
-      <div style="font-size:12px; color:#FFCDD2; margin-top:4px;">$runDate &#8226; $runTime</div>
-    </div>
-    <div style="padding:30px;">
-      <h2 style="color:#C62828; margin:0 0 16px;">Automation Failed</h2>
-      <p style="color:#555; margin:0 0 12px;">The weekly forecast update encountered an error and could not complete.</p>
-      <div style="background:#FFF3F3; border-left:4px solid #C62828; padding:14px 16px; border-radius:4px; font-size:13px; color:#333; word-break:break-word;">$ErrorMessage</div>
-      <p style="color:#777; font-size:13px; margin:16px 0 0;">Please check the automation log in the Forecasting\Data folder for full details.</p>
-    </div>
-    <div style="background:#F5F5F5; padding:14px 30px; text-align:center; border-top:1px solid #E8E8E8;">
-      <p style="color:#BDBDBD; font-size:11px; margin:0;">Automated by Forecast Update Automation &#8226; Talento Recruiting</p>
-    </div>
-  </div>
-</body>
-</html>
-"@
-        }
-
-        # Send via Microsoft Graph API — works in scheduled tasks, no SMTP AUTH needed
-        $tokenResponse = Invoke-RestMethod `
-            -Uri "https://login.microsoftonline.com/$tenantId/oauth2/v2.0/token" `
-            -Method Post `
-            -Body @{
-                client_id     = $clientId
-                client_secret = $clientSecret
-                scope         = "https://graph.microsoft.com/.default"
-                grant_type    = "client_credentials"
-            }
-
-        $toRecipients = if ($emailTo -is [array]) {
-            $emailTo | ForEach-Object { @{ emailAddress = @{ address = $_ } } }
-        } else {
-            @(@{ emailAddress = @{ address = $emailTo } })
-        }
-
-        $payload = @{
-            message = @{
-                subject      = $subject
-                body         = @{ contentType = "HTML"; content = $body }
-                toRecipients = $toRecipients
-            }
-        } | ConvertTo-Json -Depth 10
-
-        Invoke-RestMethod `
-            -Uri "https://graph.microsoft.com/v1.0/users/$emailFrom/sendMail" `
-            -Method Post `
-            -Headers @{ Authorization = "Bearer $($tokenResponse.access_token)" } `
-            -ContentType "application/json" `
-            -Body $payload
-
-        Write-Log "Email notification sent to $emailTo"
-    } catch {
-        Write-Log "WARNING: Failed to send email notification: $_"
-    }
 }
 
 try {
@@ -476,14 +303,9 @@ try {
 
     Write-Log "Automation completed successfully!"
 
-    # Send summary email
-    Send-EmailNotification -NewPlacements $newCount -NewForecastJobs $addedCount -HighlightedJobs $highlightedCount
-
 } catch {
     Write-Log "ERROR: $_"
     Write-Error $_
-    # Send failure notification email
-    Send-EmailNotification -NewPlacements 0 -NewForecastJobs 0 -HighlightedJobs 0 -Success $false -ErrorMessage $_.ToString()
 } finally {
     # Clean up
     if ($excel) {
