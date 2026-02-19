@@ -6,12 +6,98 @@ $downloadsPath = [System.IO.Path]::Combine($env:USERPROFILE, "Downloads")
 $outputPath = "C:\Users\usuario\OneDrive - talentorecruiting.com\Forecasting\Data"
 $forecastToolPath = "C:\Users\usuario\OneDrive - talentorecruiting.com\Forecasting"
 
+# Email Configuration
+$emailFrom     = "your-email@talentorecruiting.com"   # Sender address (your Office 365 account)
+$emailTo       = "your-email@talentorecruiting.com"   # Recipient(s) - use @("a@x.com","b@x.com") for multiple
+$emailPassword = "your-password"                       # Office 365 password (or App Password if MFA enabled)
+$smtpServer    = "smtp.office365.com"
+$smtpPort      = 587
+
 # Log function
 function Write-Log {
     param([string]$Message)
     $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
     Write-Host "[$timestamp] $Message"
     Add-Content -Path "$outputPath\automation.log" -Value "[$timestamp] $Message"
+}
+
+# Email notification function
+function Send-EmailNotification {
+    param(
+        [int]$NewPlacements,
+        [int]$NewForecastJobs,
+        [int]$HighlightedJobs,
+        [bool]$Success = $true,
+        [string]$ErrorMessage = ""
+    )
+    try {
+        $runDate = Get-Date -Format "MMMM dd, yyyy"
+        $runTime = Get-Date -Format "hh:mm tt"
+
+        if ($Success) {
+            $subject = "Forecast Update Summary - $runDate"
+            $body = @"
+<html>
+<body style="font-family: Arial, sans-serif; color: #333;">
+  <h2 style="color: #2E7D32;">Forecast Automation Summary</h2>
+  <p>The weekly forecast update ran successfully on <b>$runDate</b> at <b>$runTime</b>.</p>
+  <table border="1" cellpadding="10" cellspacing="0" style="border-collapse: collapse; min-width: 350px;">
+    <tr style="background-color: #2E7D32; color: white;">
+      <th align="left">Metric</th>
+      <th align="center">Count</th>
+    </tr>
+    <tr>
+      <td>New Placements Added</td>
+      <td align="center"><b>$NewPlacements</b></td>
+    </tr>
+    <tr style="background-color: #f5f5f5;">
+      <td>New Forecast Jobs Added</td>
+      <td align="center"><b>$NewForecastJobs</b></td>
+    </tr>
+    <tr>
+      <td>Jobs Highlighted Yellow (missing from forecast data)</td>
+      <td align="center"><b>$HighlightedJobs</b></td>
+    </tr>
+  </table>
+  <p style="color: #888; font-size: 12px; margin-top: 20px;">This is an automated message from the Forecast Update Automation.</p>
+</body>
+</html>
+"@
+        } else {
+            $subject = "Forecast Update FAILED - $runDate"
+            $body = @"
+<html>
+<body style="font-family: Arial, sans-serif; color: #333;">
+  <h2 style="color: #C62828;">Forecast Automation Failed</h2>
+  <p>The weekly forecast update encountered an error on <b>$runDate</b> at <b>$runTime</b>.</p>
+  <p><b>Error:</b> $ErrorMessage</p>
+  <p>Please check the automation log for details.</p>
+  <p style="color: #888; font-size: 12px; margin-top: 20px;">This is an automated message from the Forecast Update Automation.</p>
+</body>
+</html>
+"@
+        }
+
+        $smtp = New-Object System.Net.Mail.SmtpClient($smtpServer, $smtpPort)
+        $smtp.EnableSsl = $true
+        $smtp.Credentials = New-Object System.Net.NetworkCredential($emailFrom, $emailPassword)
+
+        $message = New-Object System.Net.Mail.MailMessage
+        $message.From = $emailFrom
+        if ($emailTo -is [array]) {
+            foreach ($addr in $emailTo) { $message.To.Add($addr) }
+        } else {
+            $message.To.Add($emailTo)
+        }
+        $message.Subject = $subject
+        $message.Body = $body
+        $message.IsBodyHtml = $true
+
+        $smtp.Send($message)
+        Write-Log "Email notification sent to $emailTo"
+    } catch {
+        Write-Log "WARNING: Failed to send email notification: $_"
+    }
 }
 
 try {
@@ -303,9 +389,14 @@ try {
 
     Write-Log "Automation completed successfully!"
 
+    # Send summary email
+    Send-EmailNotification -NewPlacements $newCount -NewForecastJobs $addedCount -HighlightedJobs $highlightedCount
+
 } catch {
     Write-Log "ERROR: $_"
     Write-Error $_
+    # Send failure notification email
+    Send-EmailNotification -NewPlacements 0 -NewForecastJobs 0 -HighlightedJobs 0 -Success $false -ErrorMessage $_.ToString()
 } finally {
     # Clean up
     if ($excel) {
