@@ -324,30 +324,22 @@ try {
         }
     }
 
-    # Find the log log sheet
-    $logSheet = $null
-    $allSheetNames = @()
-    foreach ($sheet in $forecastWorkbook.Sheets) {
-        $allSheetNames += "'$($sheet.Name)'"
-        if ($sheet.Name -ieq "log log") {
-            $logSheet = $sheet
-        }
-    }
-    Write-Log "All sheets: $($allSheetNames -join ', ')"
-
-    if (-not $logSheet) {
+    # Find the log log sheet (same pattern used everywhere else in this script)
+    if (-not ($sheetNames -contains "log log")) {
         Write-Log "WARNING: 'log log' tab not found — skipping log update"
     } else {
+        $logSheet = $forecastWorkbook.Sheets.Item("log log")
         Write-Log "Found log log sheet. ListObjects count: $($logSheet.ListObjects.Count)"
-        foreach ($lo in $logSheet.ListObjects) {
-            Write-Log "  Table found: '$($lo.Name)' at col $($lo.Range.Column)"
+        for ($li = 1; $li -le $logSheet.ListObjects.Count; $li++) {
+            $lo = $logSheet.ListObjects.Item($li)
+            Write-Log "  Table[$li]: '$($lo.Name)' at col $($lo.Range.Column)"
         }
 
         # Locate the two Excel Tables by name
         $logListObj1 = $null  # CumulativeData — accumulating log
         $logListObj2 = $null  # LastRunData    — latest run only
-        try { $logListObj1 = $logSheet.ListObjects.Item("CumulativeData") } catch {}
-        try { $logListObj2 = $logSheet.ListObjects.Item("LastRunData")    } catch {}
+        try { $logListObj1 = $logSheet.ListObjects.Item("CumulativeData") } catch { Write-Log "  CumulativeData lookup error: $_" }
+        try { $logListObj2 = $logSheet.ListObjects.Item("LastRunData")    } catch { Write-Log "  LastRunData lookup error: $_" }
         Write-Log "CumulativeData found: $($null -ne $logListObj1) | LastRunData found: $($null -ne $logListObj2)"
 
         # ---- Accumulating table (A-G): add row at top, renumber IDs ----
