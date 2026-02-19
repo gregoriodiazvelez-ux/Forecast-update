@@ -372,8 +372,8 @@ try {
         New-Item -ItemType Directory -Path $reportsPath | Out-Null
         Write-Log "Created Reports folder at $reportsPath"
     }
-    Copy-Item -Path $forecastSavePath -Destination (Join-Path $reportsPath "Forecast Tool $dateStamp.xlsx") -Force
-    Write-Log "Copied 'Forecast Tool $dateStamp.xlsx' to Reports folder"
+    Copy-Item -Path $forecastSavePath -Destination (Join-Path $reportsPath "Forecast Tool.xlsx") -Force
+    Write-Log "Copied to Reports folder as 'Forecast Tool.xlsx'"
 
     # Move the original file to the Old subfolder
     $oldFolderPath = Join-Path $forecastToolPath "Old"
